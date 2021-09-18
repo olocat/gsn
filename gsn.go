@@ -19,9 +19,9 @@ type NetworkListen struct {
 	Network string
 	Address string
 
-	OnConnect func(connId uint64, ctx *Context)
-	OnClose   func(connId uint64)
-	OnReceive func(connId uint64, ctx *Context)
+	OnConnect func(connId uint32, ctx *Context)
+	OnClose   func(connId uint32)
+	OnReceive func(pack UnPacker)
 
 	netListener net.Listener
 	listenState uint8
@@ -60,6 +60,13 @@ func (n *NetworkListen) Start() {
 	n.accept()
 }
 
+func (n *NetworkListen) Close() {
+	err := n.netListener.Close()
+	if err != nil {
+		panic(err)
+	}
+}
+
 func (n *NetworkListen) SetState(state uint8) {
 	n.rLock.Lock()
 	defer n.rLock.Unlock()
@@ -73,7 +80,7 @@ func (n *NetworkListen) GetState() uint8 {
 }
 
 func (n *NetworkListen) accept() {
-	defer n.netListener.Close()
+	defer n.Close()
 	for {
 		if n.GetState() == ListenStateStop {
 			break
@@ -91,16 +98,19 @@ func (n *NetworkListen) accept() {
 		_ = conn.SetWriteDeadline(n.writeDeadLine)
 
 		context := NewContext(conn)
-		_, err = GlobalClientManager.AddContext(context)
+		connId, err := GlobalClientManager.AddContext(context)
 		if err != nil {
 			fmt.Println("增加连接失败")
 			log.Println(fmt.Sprintf(err.Error()))
 			continue
 		}
+
+		context.ConnId = connId
+		go n.receivePackListener(context)
+
 	}
 }
 
-// 单独抽象出一个 packer 用于解析 bytes 数据
 func (n *NetworkListen) receivePackListener(conn *Context) {
 	fmt.Println("startConnListener")
 	defer conn.Close()
@@ -108,7 +118,7 @@ func (n *NetworkListen) receivePackListener(conn *Context) {
 	packLenBytes := make([]byte, PackHeadSize)
 	for {
 
-		size, err := conn.Read(packLenBytes)
+		_, err := conn.Read(packLenBytes)
 
 		if err != nil {
 			conn.Close()
@@ -129,10 +139,14 @@ func (n *NetworkListen) receivePackListener(conn *Context) {
 		}
 
 		data := make([]byte, packLen-PackHeadSize)
-		size, err = conn.Read(data)
+		_, err = conn.Read(data)
 		if err != nil {
-			fmt.Println("Conn Error read data:", size)
 			continue
+		}
+
+		receivePack := UnPacker{data: &data}
+		if n.OnReceive != nil {
+			n.OnReceive(receivePack)
 		}
 
 	}

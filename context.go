@@ -6,6 +6,7 @@ import (
 
 type Context struct {
 	Conn          net.Conn
+	ConnId        uint32
 	HeartbeatChan chan bool
 }
 

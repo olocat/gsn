@@ -13,18 +13,18 @@ const (
 var GlobalClientManager *ClientManager
 
 func init() {
-	GlobalClientManager = &ClientManager{connMap: map[uint64]*Context{}}
+	GlobalClientManager = &ClientManager{connMap: map[uint32]*Context{}}
 }
 
 type ClientManager struct {
-	connMap map[uint64]*Context
+	connMap map[uint32]*Context
 
 	rLock sync.RWMutex
 }
 
 /* -- ClientManager -- */
 
-func (p *ClientManager) AddContext(ctx *Context) (uint64, error) {
+func (p *ClientManager) AddContext(ctx *Context) (uint32, error) {
 	p.rLock.Lock()
 	defer p.rLock.Unlock()
 	connId, err := p.getConnId()
@@ -36,11 +36,11 @@ func (p *ClientManager) AddContext(ctx *Context) (uint64, error) {
 	return connId, nil
 }
 
-func (p *ClientManager) getConnId() (uint64, error) {
+func (p *ClientManager) getConnId() (uint32, error) {
 	for i := 1; ; i++ {
-		_, isExist := p.connMap[uint64(i)]
+		_, isExist := p.connMap[uint32(i)]
 		if !isExist {
-			return uint64(i), nil
+			return uint32(i), nil
 		}
 	}
 }
