@@ -1,18 +1,17 @@
 package gsn
 
 import (
+	"encoding/binary"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"gsn/util"
 )
 
 type UnPacker struct {
-	data *[]byte
+	DataStream []byte
 }
 
 type Packer struct {
-	data *[]byte
+	DataStream []byte
 }
 
 /* -- UnPacker -- */
@@ -40,32 +39,32 @@ func (u *UnPacker) UnPackJsonData(length int) (map[string]interface{}, error) {
 }
 
 func (u *UnPacker) UnPackBytes(length int) ([]byte, error) {
-	if u.data == nil || len(*u.data) < length {
+	if u.DataStream == nil || len(u.DataStream) < length {
 		return nil, errors.New("")
 	}
 
-	value := (*u.data)[:length]
-	*u.data = (*u.data)[length:]
+	value := u.DataStream[:length]
+	u.DataStream = u.DataStream[length:]
 	return value, nil
 }
 
 func (u *UnPacker) UnPackByte() (byte, error) {
-	if u.data == nil || len(*u.data) < 1 {
+	if u.DataStream == nil || len(u.DataStream) < 1 {
 		return 0, errors.New("")
 	}
-	value := (*u.data)[0]
-	*u.data = (*u.data)[1:]
+	value := u.DataStream[0]
+	u.DataStream = u.DataStream[1:]
 	return value, nil
 }
 
 func (u *UnPacker) UnPackUint16() (uint16, error) {
-	if u.data == nil {
+	if u.DataStream == nil || len(u.DataStream) < 2 {
 		return 0, errors.New("")
 	}
 
-	value, err := util.BytesToUInt16(*u.data)
-	*u.data = (*u.data)[2:]
-	return value, err
+	value := binary.BigEndian.Uint16(u.DataStream)
+	u.DataStream = u.DataStream[2:]
+	return value, nil
 }
 
 func (u *UnPacker) UnPackInt16() (int16, error) {
@@ -74,13 +73,13 @@ func (u *UnPacker) UnPackInt16() (int16, error) {
 }
 
 func (u *UnPacker) UnPackUint32() (uint32, error) {
-	if u.data == nil {
+	if u.DataStream == nil || len(u.DataStream) < 4 {
 		return 0, errors.New("")
 	}
 
-	value, err := util.BytesToUInt32(*u.data)
-	*u.data = (*u.data)[4:]
-	return value, err
+	value := binary.BigEndian.Uint32(u.DataStream)
+	u.DataStream = u.DataStream[4:]
+	return value, nil
 }
 
 func (u *UnPacker) UnPackInt32() (int32, error) {
@@ -89,13 +88,13 @@ func (u *UnPacker) UnPackInt32() (int32, error) {
 }
 
 func (u *UnPacker) UnPackUint64() (uint64, error) {
-	if u.data == nil {
+	if u.DataStream == nil || len(u.DataStream) < 8 {
 		return 0, errors.New("")
 	}
 
-	value, err := util.BytesToUInt64(*u.data)
-	*u.data = (*u.data)[8:]
-	return value, err
+	value := binary.BigEndian.Uint64(u.DataStream)
+	u.DataStream = u.DataStream[8:]
+	return value, nil
 }
 
 func (u *UnPacker) UnPackInt64() (int64, error) {
@@ -108,8 +107,8 @@ func (u *UnPacker) UnPackInt64() (int64, error) {
 /* -- Packer -- */
 
 func (p *Packer) initData() {
-	if p.data == nil {
-		p.data = &[]byte{0, 0}
+	if p.DataStream == nil {
+		p.DataStream = []byte{0, 0}
 	}
 }
 
@@ -118,79 +117,72 @@ func (p *Packer) PackJsonData(jsonData map[string]interface{}) error {
 	if err != nil {
 		return err
 	}
-	*p.data = append(*p.data, value...)
+	p.DataStream = append(p.DataStream, value...)
 	return nil
 }
 
 func (p *Packer) PackString(str string) {
 	p.initData()
 	value := []byte(str)
-	*p.data = append(*p.data, value...)
+	p.DataStream = append(p.DataStream, value...)
 }
 
 func (p *Packer) PackBytes(value []byte) {
 	p.initData()
-	*p.data = append(*p.data, value...)
+	p.DataStream = append(p.DataStream, value...)
 }
 
 func (p *Packer) PackByte(value byte) {
 	p.initData()
-	*p.data = append(*p.data, value)
+	p.DataStream = append(p.DataStream, value)
 }
 
 func (p *Packer) PackUint16(value uint16) {
 	p.initData()
-	byteList := util.UInt16ToBytes(value)
-	*p.data = append(*p.data, byteList...)
+	byteList := make([]byte, 2)
+	binary.BigEndian.PutUint16(byteList, value)
+	p.DataStream = append(p.DataStream, byteList...)
 }
 
 func (p *Packer) PackInt16(value int16) {
 	p.initData()
-	byteList := util.UInt16ToBytes(uint16(value))
-	*p.data = append(*p.data, byteList...)
+	p.PackUint16(uint16(value))
 }
 
 func (p *Packer) PackUint32(value uint32) {
 	p.initData()
-	byteList := util.UInt32ToBytes(value)
-	*p.data = append(*p.data, byteList...)
+	byteList := make([]byte, 4)
+	binary.BigEndian.PutUint32(byteList, value)
+	p.DataStream = append(p.DataStream, byteList...)
 }
 
 func (p *Packer) PackInt32(value int32) {
 	p.initData()
-	byteList := util.UInt32ToBytes(uint32(value))
-	*p.data = append(*p.data, byteList...)
+	p.PackUint32(uint32(value))
 }
 
 func (p *Packer) PackUint64(value uint64) {
 	p.initData()
-	byteList := util.UInt64ToBytes(value)
-	*p.data = append(*p.data, byteList...)
+	byteList := make([]byte, 8)
+	binary.BigEndian.PutUint64(byteList, value)
+	p.DataStream = append(p.DataStream, byteList...)
 }
 
 func (p *Packer) PackInt64(value int64) {
 	p.initData()
-	byteList := util.UInt64ToBytes(uint64(value))
-	*p.data = append(*p.data, byteList...)
+	p.PackUint64(uint64(value))
 }
 
 func (p *Packer) computeDataLength() {
 	p.initData()
-
-	fmt.Println("computeDataLength len:", len(*p.data))
-
-	dataLen := uint16(len(*p.data))
-	dataLenBytes := util.UInt16ToBytes(dataLen)
-	(*p.data)[0] = dataLenBytes[0]
-	(*p.data)[1] = dataLenBytes[1]
+	dataLen := uint16(len(p.DataStream))
+	binary.BigEndian.PutUint16(p.DataStream, dataLen)
 }
 
 func (p *Packer) GetData() []byte {
 	p.initData()
 	p.computeDataLength()
-
-	fmt.Println("GetData ", (*p.data)[0], (*p.data)[1])
-	return *p.data
+	return p.DataStream
 }
 
 /* ------------ */

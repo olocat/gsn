@@ -29,7 +29,7 @@ func TestPacker(t *testing.T) {
 }
 
 func readData(packer UnPacker) {
-	fmt.Println("readData", len(*packer.data))
+	fmt.Println("readData", len(packer.DataStream))
 	v1, _ := packer.UnPackUint16()
 	v2, _ := packer.UnPackInt16()
 	v3, _ := packer.UnPackUint32()
@@ -81,4 +81,15 @@ func writeData(packer *Packer) {
 	jsonLength := uint16(len(jsonBytes))
 	packer.PackUint16(jsonLength)
 	_ = packer.PackJsonData(jsonData)
+}
+
+type Blet struct {
+	data []byte
+}
+
+func TestBlet(t *testing.T) {
+	blet := Blet{data: []byte{1, 2, 3, 4, 5}}
+
+	blet.data = blet.data[2:]
+	fmt.Println(blet.data)
 }

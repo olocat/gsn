@@ -1,8 +1,8 @@
 package gsn
 
 import (
+	"encoding/binary"
 	"fmt"
-	"gsn/util"
 	"log"
 	"net"
 	"sync"
@@ -118,17 +118,18 @@ func (n *NetworkListen) receivePackListener(conn *Context) {
 	packLenBytes := make([]byte, PackHeadSize)
 	for {
 
-		_, err := conn.Read(packLenBytes)
+		size, err := conn.Read(packLenBytes)
 
 		if err != nil {
 			conn.Close()
 		}
 
-		packLen, err := util.BytesToUInt16(packLenBytes)
-		if err != nil {
+		if size < 2 {
 			fmt.Println("packLen is Error")
 			continue
 		}
+
+		packLen := binary.BigEndian.Uint16(packLenBytes)
 
 		if packLen == 0 {
 			fmt.Println("heartbeat")
@@ -144,7 +145,7 @@ func (n *NetworkListen) receivePackListener(conn *Context) {
 			continue
 		}
 
-		receivePack := UnPacker{data: &data}
+		receivePack := UnPacker{DataStream: data}
 		if n.OnReceive != nil {
 			n.OnReceive(receivePack)
 		}
