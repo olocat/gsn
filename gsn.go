@@ -21,7 +21,7 @@ type NetworkListen struct {
 
 	OnConnect func(connId uint32, ctx *Context)
 	OnClose   func(connId uint32)
-	OnReceive func(pack UnPacker)
+	OnReceive func(pack *ReceivePack)
 
 	netListener net.Listener
 	listenState uint8
@@ -30,6 +30,8 @@ type NetworkListen struct {
 	deadLine      time.Time
 	writeDeadLine time.Time
 	readDeadLine  time.Time
+
+	PackSeq uint32
 
 	rLock sync.RWMutex
 }
@@ -124,12 +126,11 @@ func (n *NetworkListen) receivePackListener(conn *Context) {
 			conn.Close()
 		}
 
-		if size < 2 {
-			fmt.Println("packLen is Error")
+		if size < PackHeadSize {
 			continue
 		}
 
-		packLen := binary.BigEndian.Uint16(packLenBytes)
+		packLen := binary.BigEndian.Uint32(packLenBytes)
 
 		if packLen == 0 {
 			fmt.Println("heartbeat")
@@ -145,7 +146,8 @@ func (n *NetworkListen) receivePackListener(conn *Context) {
 			continue
 		}
 
-		receivePack := UnPacker{DataStream: data}
+		//receivePack := UnPacker{DataStream: data}
+		receivePack := NewReceivePack(conn, data)
 		if n.OnReceive != nil {
 			n.OnReceive(receivePack)
 		}

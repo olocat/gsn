@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	PackHeadSize = 2
+	PackHeadSize = 4
 )
 
 var GlobalClientManager *ClientManager
@@ -34,6 +34,10 @@ func (p *ClientManager) AddContext(ctx *Context) (uint32, error) {
 	p.connMap[connId] = ctx
 	p.startConnListener(ctx)
 	return connId, nil
+}
+
+func (p *ClientManager) RemoveContext(ctx *Context) {
+	delete(p.connMap, ctx.ConnId)
 }
 
 func (p *ClientManager) getConnId() (uint32, error) {

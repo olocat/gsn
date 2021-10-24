@@ -1,7 +1,6 @@
 package gsn
 
 import (
-	"encoding/json"
 	"fmt"
 	"net"
 	"testing"
@@ -10,7 +9,7 @@ import (
 
 func TestPacker(t *testing.T) {
 	listen := ListenTCP(":8081")
-	listen.OnReceive = func(pack UnPacker) {
+	listen.OnReceive = func(pack *ReceivePack) {
 		readData(pack)
 	}
 	go listen.Start()
@@ -21,14 +20,14 @@ func TestPacker(t *testing.T) {
 	if err != nil {
 		fmt.Println(err)
 	}
-	var packer = Packer{}
-	writeData(&packer)
-	sendData := packer.GetData()
-	conn.Write(sendData)
+	ctx := NewContext(conn)
+	var packer = NewSendPack(ctx)
+	writeData(packer)
+	packer.Send()
 	time.Sleep(2 * time.Second)
 }
 
-func readData(packer UnPacker) {
+func readData(packer *ReceivePack) {
 	fmt.Println("readData", len(packer.DataStream))
 	v1, _ := packer.UnPackUint16()
 	v2, _ := packer.UnPackInt16()
@@ -38,15 +37,12 @@ func readData(packer UnPacker) {
 	v6, _ := packer.UnPackInt64()
 	v7, _ := packer.UnPackByte()
 	v8, _ := packer.UnPackBytes(int(v7))
-
-	sl, _ := packer.UnPackUint16()
-	str, err := packer.UnPackString(int(sl))
+	str, err := packer.UnPackString()
 	if err != nil {
 		fmt.Println("UnPackString err:", err)
 	}
 
-	jl, _ := packer.UnPackUint16()
-	jsonData, err := packer.UnPackJsonData(int(jl))
+	jsonData, err := packer.UnPackJsonData()
 	if err != nil {
 		fmt.Println("UnPackJsonData err:", err)
 	}
@@ -57,7 +53,7 @@ func readData(packer UnPacker) {
 	fmt.Println(jsonData["zhangsan"], jsonData["lisi"], jsonData["wangwu"])
 }
 
-func writeData(packer *Packer) {
+func writeData(packer *SendPack) {
 	packer.PackUint16(65535)
 	packer.PackInt16(-32768)
 	packer.PackUint32(4294967295)
@@ -68,28 +64,11 @@ func writeData(packer *Packer) {
 	packer.PackBytes([]byte{0, 1, 2, 3, 255})
 
 	str := "zhangsan lisi wangwu 都是认证啊 !`||。。，，"
-	strBytes := []byte(str)
-	strLength := uint16(len(strBytes))
-	packer.PackUint16(strLength)
 	packer.PackString(str)
 
 	jsonData := map[string]interface{}{}
 	jsonData["zhangsan"] = "1001"
 	jsonData["lisi"] = "1002"
 	jsonData["wangwu"] = "1003"
-	jsonBytes, _ := json.Marshal(jsonData)
-	jsonLength := uint16(len(jsonBytes))
-	packer.PackUint16(jsonLength)
 	_ = packer.PackJsonData(jsonData)
-}
-
-type Blet struct {
-	data []byte
-}
-
-func TestBlet(t *testing.T) {
-	blet := Blet{data: []byte{1, 2, 3, 4, 5}}
-
-	blet.data = blet.data[2:]
-	fmt.Println(blet.data)
 }

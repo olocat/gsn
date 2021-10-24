@@ -20,6 +20,7 @@ func NewContext(conn net.Conn) *Context {
 /* -- Context -- */
 
 func (p *Context) Close() {
+	GlobalClientManager.RemoveContext(p)
 	_ = p.Conn.Close()
 }
 
