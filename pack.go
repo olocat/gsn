@@ -45,7 +45,7 @@ func (r *ReceivePack) UnPackJsonData() (map[string]interface{}, error) {
 func (s *SendPack) Send() error {
 	dataStream := s.GetData()
 	if len(dataStream) > math.MaxUint32 {
-		return errors.New("pack data too long")
+		return errors.New("unable to send because the data is too long")
 	}
 	_, err := s.Ctx.Write(dataStream)
 	return err

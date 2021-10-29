@@ -19,7 +19,7 @@ type NetworkListen struct {
 	Network string
 	Address string
 
-	OnConnect func(connId uint32, ctx *Context)
+	OnConnect func(ctx *Context)
 	OnClose   func(connId uint32)
 	OnReceive func(pack *ReceivePack)
 
@@ -30,8 +30,6 @@ type NetworkListen struct {
 	deadLine      time.Time
 	writeDeadLine time.Time
 	readDeadLine  time.Time
-
-	PackSeq uint32
 
 	rLock sync.RWMutex
 }
@@ -46,14 +44,13 @@ func ListenTCP(address string) *NetworkListen {
 /* -- NetworkListen -- */
 
 func (n *NetworkListen) Start() {
-	n.SetState(ListenStateReady)
 	if n.netListener != nil {
 		_ = n.netListener.Close()
 	}
 
 	listener, err := net.Listen(n.Network, n.Address)
 	if err != nil {
-		fmt.Println("监听失败")
+		fmt.Println("listen network fault")
 		log.Println(fmt.Sprintf(err.Error()))
 		return
 	}
@@ -90,7 +87,7 @@ func (n *NetworkListen) accept() {
 
 		conn, err := n.netListener.Accept()
 		if err != nil {
-			fmt.Println("连接失败")
+			fmt.Println("conn accept fault")
 			log.Println(fmt.Sprintf(err.Error()))
 			break
 		}
@@ -99,17 +96,18 @@ func (n *NetworkListen) accept() {
 		_ = conn.SetReadDeadline(n.readDeadLine)
 		_ = conn.SetWriteDeadline(n.writeDeadLine)
 
-		context := NewContext(conn)
-		connId, err := GlobalClientManager.AddContext(context)
+		context, err := GlobalClientManager.ManageConn(conn)
 		if err != nil {
-			fmt.Println("增加连接失败")
+			fmt.Println("client pool add conn fault")
 			log.Println(fmt.Sprintf(err.Error()))
 			continue
 		}
 
-		context.ConnId = connId
-		go n.receivePackListener(context)
+		if n.OnConnect != nil {
+			n.OnConnect(context)
+		}
 
+		go n.receivePackListener(context)
 	}
 }
 
@@ -146,7 +144,6 @@ func (n *NetworkListen) receivePackListener(conn *Context) {
 			continue
 		}
 
-		//receivePack := UnPacker{DataStream: data}
 		receivePack := NewReceivePack(conn, data)
 		if n.OnReceive != nil {
 			n.OnReceive(receivePack)

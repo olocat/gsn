@@ -48,7 +48,7 @@ func (u *UnPacker) UnPackJsonData(length int) (map[string]interface{}, error) {
 
 func (u *UnPacker) UnPackBytes(length int) ([]byte, error) {
 	if u.DataStream == nil || len(u.DataStream) < length {
-		return nil, errors.New("")
+		return nil, errors.New("can't unpacker byte array, insufficient data length")
 	}
 
 	value := u.DataStream[:length]
@@ -58,7 +58,7 @@ func (u *UnPacker) UnPackBytes(length int) ([]byte, error) {
 
 func (u *UnPacker) UnPackByte() (byte, error) {
 	if u.DataStream == nil || len(u.DataStream) < 1 {
-		return 0, errors.New("")
+		return 0, errors.New("can't unpacker byte, insufficient data length")
 	}
 	value := u.DataStream[0]
 	u.DataStream = u.DataStream[1:]
@@ -67,7 +67,7 @@ func (u *UnPacker) UnPackByte() (byte, error) {
 
 func (u *UnPacker) UnPackUint16() (uint16, error) {
 	if u.DataStream == nil || len(u.DataStream) < 2 {
-		return 0, errors.New("")
+		return 0, errors.New("can't unpacker uint16, insufficient data length")
 	}
 
 	value := binary.BigEndian.Uint16(u.DataStream)
@@ -82,7 +82,7 @@ func (u *UnPacker) UnPackInt16() (int16, error) {
 
 func (u *UnPacker) UnPackUint32() (uint32, error) {
 	if u.DataStream == nil || len(u.DataStream) < 4 {
-		return 0, errors.New("")
+		return 0, errors.New("can't unpacker uint32,insufficient data length")
 	}
 
 	value := binary.BigEndian.Uint32(u.DataStream)
@@ -97,7 +97,7 @@ func (u *UnPacker) UnPackInt32() (int32, error) {
 
 func (u *UnPacker) UnPackUint64() (uint64, error) {
 	if u.DataStream == nil || len(u.DataStream) < 8 {
-		return 0, errors.New("")
+		return 0, errors.New("can't unpacker uint64,insufficient data length")
 	}
 
 	value := binary.BigEndian.Uint64(u.DataStream)

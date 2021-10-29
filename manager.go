@@ -2,6 +2,7 @@ package gsn
 
 import (
 	"fmt"
+	"net"
 	"sync"
 	"time"
 )
@@ -24,9 +25,21 @@ type ClientManager struct {
 
 /* -- ClientManager -- */
 
+func (p *ClientManager) ManageConn(conn net.Conn) (*Context, error) {
+	ctx := NewContext(conn)
+	connId, err := p.AddContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	ctx.ConnId = connId
+	return ctx, nil
+}
+
 func (p *ClientManager) AddContext(ctx *Context) (uint32, error) {
 	p.rLock.Lock()
 	defer p.rLock.Unlock()
+
 	connId, err := p.getConnId()
 	if err != nil {
 		return 0, err
@@ -37,6 +50,9 @@ func (p *ClientManager) AddContext(ctx *Context) (uint32, error) {
 }
 
 func (p *ClientManager) RemoveContext(ctx *Context) {
+	p.rLock.Lock()
+	defer p.rLock.Unlock()
+
 	delete(p.connMap, ctx.ConnId)
 }
 
