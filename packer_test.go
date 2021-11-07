@@ -8,11 +8,11 @@ import (
 )
 
 func TestPacker(t *testing.T) {
-	listen := ListenTCP(":8081")
+	listen := NewNetworkListenUseTCP(":8081")
 	listen.OnReceive = func(pack *ReceivePack) {
 		readData(pack)
 	}
-	go listen.Start()
+	go listen.ListenAndServer()
 
 	time.Sleep(time.Second)
 	conn, err := net.Dial("tcp", ":8081")

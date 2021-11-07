@@ -34,16 +34,23 @@ type NetworkListen struct {
 	rLock sync.RWMutex
 }
 
-func ListenTCP(address string) *NetworkListen {
+func NewNetworkListenUseTCP(address string) *NetworkListen {
 	return &NetworkListen{
 		Network: "tcp",
 		Address: address,
 	}
 }
 
+func NewNetworkListenUseUDP(address string) *NetworkListen {
+	return &NetworkListen{
+		Network: "udp",
+		Address: address,
+	}
+}
+
 /* -- NetworkListen -- */
 
-func (n *NetworkListen) Start() {
+func (n *NetworkListen) ListenAndServer() {
 	if n.netListener != nil {
 		_ = n.netListener.Close()
 	}

@@ -1,1 +1,1 @@
-module "gsn"
+module "github.com/olocat/gsn"
