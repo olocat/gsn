@@ -23,4 +23,8 @@
 - Header 为数据头部类 struct
 - Data 为数据 map[string]interface{}
 
+## 2022-3-17
+- 准备完全重构
+- 增加文档 doc.md
+
 ### 未完待续
