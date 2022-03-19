@@ -66,7 +66,8 @@ func (e *ExampleBehavior) OnPackage(content *gsn.Content, stream []byte) {
 }
 
 func example() {
-	listen, err := gsn.Listen("tcp", ":8088")
+	behavior := &ExampleBehavior{}
+	listen, err := gsn.Listen("tcp", ":8088", behavior)
 	if err != nil {
 		log.Println(err.Error())
 		return
