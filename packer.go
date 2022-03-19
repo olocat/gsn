@@ -6,7 +6,15 @@ import (
 	"errors"
 )
 
-type UnPacker struct {
+const (
+	ByteHeadSize       = 1
+	WordHeadSize       = 2
+	DoubleWordHeadSize = 4
+	FourWordHeadSize   = 8
+	DefaultHeadSize    = DoubleWordHeadSize
+)
+
+type Unpacker struct {
 	DataStream []byte
 }
 
@@ -14,17 +22,17 @@ type Packer struct {
 	DataStream []byte
 }
 
-func NewPacker() *Packer {
-	return &Packer{DataStream: make([]byte, PackHeadSize)}
+func NewBinPacker() *Packer {
+	return &Packer{DataStream: []byte{}}
 }
 
-func NewUnPacker(dataStream []byte) *UnPacker {
-	return &UnPacker{DataStream: dataStream}
+func NewBinUnpacker(dataStream []byte) *Unpacker {
+	return &Unpacker{DataStream: dataStream}
 }
 
-/* -- UnPacker -- */
+/* -- Unpacker -- */
 
-func (u *UnPacker) UnPackString(length int) (string, error) {
+func (u *Unpacker) UnPackString(length int) (string, error) {
 	byteList, err := u.UnPackBytes(length)
 	if err != nil {
 		return "", err
@@ -33,7 +41,7 @@ func (u *UnPacker) UnPackString(length int) (string, error) {
 	return string(byteList), nil
 }
 
-func (u *UnPacker) UnPackJsonData(length int) (map[string]interface{}, error) {
+func (u *Unpacker) UnPackJsonData(length int) (map[string]interface{}, error) {
 	byteList, err := u.UnPackBytes(length)
 	if err != nil {
 		return nil, err
@@ -46,7 +54,7 @@ func (u *UnPacker) UnPackJsonData(length int) (map[string]interface{}, error) {
 	return jsonData, nil
 }
 
-func (u *UnPacker) UnPackBytes(length int) ([]byte, error) {
+func (u *Unpacker) UnPackBytes(length int) ([]byte, error) {
 	if u.DataStream == nil || len(u.DataStream) < length {
 		return nil, errors.New("can't unpacker byte array, insufficient data length")
 	}
@@ -56,7 +64,7 @@ func (u *UnPacker) UnPackBytes(length int) ([]byte, error) {
 	return value, nil
 }
 
-func (u *UnPacker) UnPackByte() (byte, error) {
+func (u *Unpacker) UnPackByte() (byte, error) {
 	if u.DataStream == nil || len(u.DataStream) < 1 {
 		return 0, errors.New("can't unpacker byte, insufficient data length")
 	}
@@ -65,7 +73,7 @@ func (u *UnPacker) UnPackByte() (byte, error) {
 	return value, nil
 }
 
-func (u *UnPacker) UnPackUint16() (uint16, error) {
+func (u *Unpacker) UnPackUint16() (uint16, error) {
 	if u.DataStream == nil || len(u.DataStream) < 2 {
 		return 0, errors.New("can't unpacker uint16, insufficient data length")
 	}
@@ -75,12 +83,12 @@ func (u *UnPacker) UnPackUint16() (uint16, error) {
 	return value, nil
 }
 
-func (u *UnPacker) UnPackInt16() (int16, error) {
+func (u *Unpacker) UnPackInt16() (int16, error) {
 	value, err := u.UnPackUint16()
 	return int16(value), err
 }
 
-func (u *UnPacker) UnPackUint32() (uint32, error) {
+func (u *Unpacker) UnPackUint32() (uint32, error) {
 	if u.DataStream == nil || len(u.DataStream) < 4 {
 		return 0, errors.New("can't unpacker uint32,insufficient data length")
 	}
@@ -90,12 +98,12 @@ func (u *UnPacker) UnPackUint32() (uint32, error) {
 	return value, nil
 }
 
-func (u *UnPacker) UnPackInt32() (int32, error) {
+func (u *Unpacker) UnPackInt32() (int32, error) {
 	value, err := u.UnPackUint32()
 	return int32(value), err
 }
 
-func (u *UnPacker) UnPackUint64() (uint64, error) {
+func (u *Unpacker) UnPackUint64() (uint64, error) {
 	if u.DataStream == nil || len(u.DataStream) < 8 {
 		return 0, errors.New("can't unpacker uint64,insufficient data length")
 	}
@@ -105,7 +113,7 @@ func (u *UnPacker) UnPackUint64() (uint64, error) {
 	return value, nil
 }
 
-func (u *UnPacker) UnPackInt64() (int64, error) {
+func (u *Unpacker) UnPackInt64() (int64, error) {
 	value, err := u.UnPackUint64()
 	return int64(value), err
 }
@@ -166,13 +174,7 @@ func (p *Packer) PackInt64(value int64) {
 	p.PackUint64(uint64(value))
 }
 
-func (p *Packer) computeDataLength() {
-	dataLen := uint32(len(p.DataStream))
-	binary.BigEndian.PutUint32(p.DataStream, dataLen)
-}
-
 func (p *Packer) GetData() []byte {
-	p.computeDataLength()
 	return p.DataStream
 }
 

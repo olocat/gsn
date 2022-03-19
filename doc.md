@@ -26,14 +26,13 @@ type ExampleBehavior struct {
 }
 
 // OnConnect 当监听到其它请求进来时，连接成功后会调用该方法，只有 Listen 会用到该方法
-func (e *ExampleBehavior) OnConnect(content *gsn.Content) {
-	var conn net.Conn = content.Conn
+func (e *ExampleBehavior) OnConnect(conn net.Conn) {
 	log.Println("connect in", conn.RemoteAddr())
 }
 
 // OnPackage 当收到包后，数据会传到该方法
 // 由自己选择使用哪种解包方式
-func (e *ExampleBehavior) OnPackage(content *gsn.Content, stream []byte) {
+func (e *ExampleBehavior) OnPackage(conn net.Conn, stream []byte) {
 	// 使用二进制解包
 	recv := gsn.NewBinUnpacker(stream)
 
@@ -67,10 +66,12 @@ func (e *ExampleBehavior) OnPackage(content *gsn.Content, stream []byte) {
 
 func example() {
 	behavior := &ExampleBehavior{}
-	listen, err := gsn.Listen("tcp", ":8088", behavior)
+	listener, err := gsn.Listen("tcp", ":8088", behavior)
 	if err != nil {
 		log.Println(err.Error())
 		return
 	}
+	
+	listener.Start()
 }
 ```

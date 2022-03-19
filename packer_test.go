@@ -2,33 +2,19 @@ package gsn
 
 import (
 	"fmt"
-	"net"
 	"testing"
-	"time"
 )
 
 func TestPacker(t *testing.T) {
-	listen := NewNetworkListenUseTCP(":8081")
-	listen.OnReceive = func(pack *ReceivePack) {
-		readData(pack)
-	}
-	go listen.ListenAndServer()
-
-	time.Sleep(time.Second)
-	conn, err := net.Dial("tcp", ":8081")
-	defer conn.Close()
-	if err != nil {
-		fmt.Println(err)
-	}
-	ctx := NewContext(conn)
-	var packer = NewSendPack(ctx)
-	writeData(packer)
-	packer.Send()
-	time.Sleep(2 * time.Second)
+	pack := NewBinPacker()
+	writeData(pack)
+	unpack := NewBinUnpacker(pack.GetData())
+	readData(unpack)
 }
 
-func readData(packer *ReceivePack) {
+func readData(packer *Unpacker) {
 	fmt.Println("readData", len(packer.DataStream))
+
 	v1, _ := packer.UnPackUint16()
 	v2, _ := packer.UnPackInt16()
 	v3, _ := packer.UnPackUint32()
@@ -37,23 +23,18 @@ func readData(packer *ReceivePack) {
 	v6, _ := packer.UnPackInt64()
 	v7, _ := packer.UnPackByte()
 	v8, _ := packer.UnPackBytes(int(v7))
-	str, err := packer.UnPackString()
+	sz, _ := packer.UnPackUint32()
+	str, err := packer.UnPackString(int(sz))
 	if err != nil {
 		fmt.Println("UnPackString err:", err)
-	}
-
-	jsonData, err := packer.UnPackJsonData()
-	if err != nil {
-		fmt.Println("UnPackJsonData err:", err)
 	}
 
 	fmt.Println(v1, v2, v3, v4, v5, v6)
 	fmt.Println(v7, v8)
 	fmt.Println(str)
-	fmt.Println(jsonData["zhangsan"], jsonData["lisi"], jsonData["wangwu"])
 }
 
-func writeData(packer *SendPack) {
+func writeData(packer *Packer) {
 	packer.PackUint16(65535)
 	packer.PackInt16(-32768)
 	packer.PackUint32(4294967295)
@@ -64,11 +45,6 @@ func writeData(packer *SendPack) {
 	packer.PackBytes([]byte{0, 1, 2, 3, 255})
 
 	str := "zhangsan lisi wangwu 都是认证啊 !`||。。，，"
+	packer.PackUint32(uint32(len(str)))
 	packer.PackString(str)
-
-	jsonData := map[string]interface{}{}
-	jsonData["zhangsan"] = "1001"
-	jsonData["lisi"] = "1002"
-	jsonData["wangwu"] = "1003"
-	_ = packer.PackJsonData(jsonData)
 }
