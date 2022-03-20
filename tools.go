@@ -52,6 +52,45 @@ func transInt(b []byte) uint64 {
 	return 0
 }
 
+func putInt(headSize byte, b []byte, v uint64) {
+	if b == nil || len(b) == 0 {
+		return
+	}
+
+	size := len(b)
+	if headSize == ByteHeadSize {
+		if size < 1 {
+			return
+		}
+		b[0] = byte(v)
+		return
+	}
+
+	if headSize == WordHeadSize {
+		if size < 2 {
+			return
+		}
+		binary.BigEndian.PutUint16(b, uint16(v))
+		return
+	}
+
+	if headSize == DoubleWordHeadSize {
+		if size < 4 {
+			return
+		}
+		binary.BigEndian.PutUint32(b, uint32(v))
+		return
+	}
+
+	if headSize == FourWordHeadSize {
+		if size < 8 {
+			return
+		}
+		binary.BigEndian.PutUint64(b, v)
+		return
+	}
+}
+
 //correctHeadSize Only 1,2,4,8 allowed
 func correctHeadSize(headSize byte) byte {
 	if headSize <= 0 {

@@ -3,7 +3,7 @@ package gsn
 import (
 	"encoding/binary"
 	"encoding/json"
-	"errors"
+	"encoding/xml"
 )
 
 const (
@@ -14,168 +14,134 @@ const (
 	DefaultHeadSize    = DoubleWordHeadSize
 )
 
-type Unpacker struct {
-	DataStream []byte
-}
-
 type Packer struct {
-	DataStream []byte
+	headSize   byte
+	dataStream []byte
 }
 
-func NewBinPacker() *Packer {
-	return &Packer{DataStream: []byte{}}
+type BinPacker struct {
+	*Packer
 }
 
-func NewBinUnpacker(dataStream []byte) *Unpacker {
-	return &Unpacker{DataStream: dataStream}
+type JsonPacker struct {
+	*Packer
 }
 
-/* -- Unpacker -- */
+type XmlPacker struct {
+	*Packer
+}
 
-func (u *Unpacker) UnPackString(length int) (string, error) {
-	byteList, err := u.UnPackBytes(length)
-	if err != nil {
-		return "", err
+func NewPacker(headSize byte) *Packer {
+	headSize = correctHeadSize(headSize)
+	return &Packer{dataStream: make([]byte, headSize), headSize: headSize}
+}
+
+func NewBinPacker() *BinPacker {
+	return &BinPacker{NewPacker(DefaultHeadSize)}
+}
+
+func NewJsonPacker() *JsonPacker {
+	return &JsonPacker{NewPacker(DefaultHeadSize)}
+}
+
+func NewXmlPacker() *XmlPacker {
+	return &XmlPacker{NewPacker(DefaultHeadSize)}
+}
+
+func (p *Packer) SetHeadSize(headSize byte) {
+	headSize = correctHeadSize(headSize)
+	if headSize == p.headSize {
+		return
 	}
 
-	return string(byteList), nil
+	length := transInt(p.dataStream[:p.headSize])
+	newHeadBytes := make([]byte, headSize, headSize)
+	putInt(headSize, newHeadBytes, length)
+	p.dataStream = append(newHeadBytes, p.dataStream[headSize:]...)
 }
 
-func (u *Unpacker) UnPackJsonData(length int) (map[string]interface{}, error) {
-	byteList, err := u.UnPackBytes(length)
-	if err != nil {
-		return nil, err
-	}
-	jsonData := map[string]interface{}{}
-	err = json.Unmarshal(byteList, &jsonData)
-	if err != nil {
-		return nil, err
-	}
-	return jsonData, nil
+func (p *Packer) Append(stream ...byte) {
+	p.dataStream = append(p.dataStream, stream...)
 }
 
-func (u *Unpacker) UnPackBytes(length int) ([]byte, error) {
-	if u.DataStream == nil || len(u.DataStream) < length {
-		return nil, errors.New("can't unpacker byte array, insufficient data length")
-	}
-
-	value := u.DataStream[:length]
-	u.DataStream = u.DataStream[length:]
-	return value, nil
+func (p *Packer) GetData() []byte {
+	length := len(p.dataStream)
+	putInt(p.headSize, p.dataStream, uint64(length))
+	return p.dataStream
 }
 
-func (u *Unpacker) UnPackByte() (byte, error) {
-	if u.DataStream == nil || len(u.DataStream) < 1 {
-		return 0, errors.New("can't unpacker byte, insufficient data length")
-	}
-	value := u.DataStream[0]
-	u.DataStream = u.DataStream[1:]
-	return value, nil
+func (p *Packer) Clean() {
+	p.dataStream = make([]byte, p.headSize)
 }
 
-func (u *Unpacker) UnPackUint16() (uint16, error) {
-	if u.DataStream == nil || len(u.DataStream) < 2 {
-		return 0, errors.New("can't unpacker uint16, insufficient data length")
-	}
-
-	value := binary.BigEndian.Uint16(u.DataStream)
-	u.DataStream = u.DataStream[2:]
-	return value, nil
-}
-
-func (u *Unpacker) UnPackInt16() (int16, error) {
-	value, err := u.UnPackUint16()
-	return int16(value), err
-}
-
-func (u *Unpacker) UnPackUint32() (uint32, error) {
-	if u.DataStream == nil || len(u.DataStream) < 4 {
-		return 0, errors.New("can't unpacker uint32,insufficient data length")
-	}
-
-	value := binary.BigEndian.Uint32(u.DataStream)
-	u.DataStream = u.DataStream[4:]
-	return value, nil
-}
-
-func (u *Unpacker) UnPackInt32() (int32, error) {
-	value, err := u.UnPackUint32()
-	return int32(value), err
-}
-
-func (u *Unpacker) UnPackUint64() (uint64, error) {
-	if u.DataStream == nil || len(u.DataStream) < 8 {
-		return 0, errors.New("can't unpacker uint64,insufficient data length")
-	}
-
-	value := binary.BigEndian.Uint64(u.DataStream)
-	u.DataStream = u.DataStream[8:]
-	return value, nil
-}
-
-func (u *Unpacker) UnPackInt64() (int64, error) {
-	value, err := u.UnPackUint64()
-	return int64(value), err
-}
-
-/* ------------ */
-
-/* -- Packer -- */
-
-func (p *Packer) PackJsonData(jsonData map[string]interface{}) error {
+func (p *BinPacker) PackJsonData(jsonData map[string]interface{}) error {
 	value, err := json.Marshal(jsonData)
 	if err != nil {
 		return err
 	}
-	p.DataStream = append(p.DataStream, value...)
+	p.dataStream = append(p.dataStream, value...)
 	return nil
 }
 
-func (p *Packer) PackString(str string) {
+func (p *BinPacker) PackString(str string) {
 	value := []byte(str)
-	p.DataStream = append(p.DataStream, value...)
+	p.Append(value...)
 }
 
-func (p *Packer) PackBytes(value []byte) {
-	p.DataStream = append(p.DataStream, value...)
+func (p *BinPacker) PackBytes(value []byte) {
+	p.Append(value...)
 }
 
-func (p *Packer) PackByte(value byte) {
-	p.DataStream = append(p.DataStream, value)
+func (p *BinPacker) PackByte(value byte) {
+	p.Append(value)
 }
 
-func (p *Packer) PackUint16(value uint16) {
+func (p *BinPacker) PackUint16(value uint16) {
 	byteList := make([]byte, 2)
 	binary.BigEndian.PutUint16(byteList, value)
-	p.DataStream = append(p.DataStream, byteList...)
+	p.Append(byteList...)
 }
 
-func (p *Packer) PackInt16(value int16) {
+func (p *BinPacker) PackInt16(value int16) {
 	p.PackUint16(uint16(value))
 }
 
-func (p *Packer) PackUint32(value uint32) {
+func (p *BinPacker) PackUint32(value uint32) {
 	byteList := make([]byte, 4)
 	binary.BigEndian.PutUint32(byteList, value)
-	p.DataStream = append(p.DataStream, byteList...)
+	p.Append(byteList...)
 }
 
-func (p *Packer) PackInt32(value int32) {
+func (p *BinPacker) PackInt32(value int32) {
 	p.PackUint32(uint32(value))
 }
 
-func (p *Packer) PackUint64(value uint64) {
+func (p *BinPacker) PackUint64(value uint64) {
 	byteList := make([]byte, 8)
 	binary.BigEndian.PutUint64(byteList, value)
-	p.DataStream = append(p.DataStream, byteList...)
+	p.Append(byteList...)
 }
 
-func (p *Packer) PackInt64(value int64) {
+func (p *BinPacker) PackInt64(value int64) {
 	p.PackUint64(uint64(value))
 }
 
-func (p *Packer) GetData() []byte {
-	return p.DataStream
+func (p *JsonPacker) PackObject(v any) error {
+	stream, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	p.Append(stream...)
+	return nil
 }
 
-/* ------------ */
+func (p *XmlPacker) PackObject(v any) error {
+	stream, err := xml.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	p.Append(stream...)
+	return nil
+}

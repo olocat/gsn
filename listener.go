@@ -9,30 +9,31 @@ import (
 )
 
 const (
-	ListenStateReady = 0
-	ListenStateStop  = 1
+	ListenStateReady   = 0
+	ListenStateRunning = 1
+	ListenStateStop    = 2
 )
 
 type Listener struct {
 	net.Listener
 	TLSConfig *tls.Config
 	Behavior  Behavior
-	HeadSize  byte
 
-	connMap map[uint32]net.Conn
-	state   byte
-	mpMux   sync.Mutex
-	stMux   sync.RWMutex
+	headSize byte
+	connMap  map[uint32]net.Conn
+	state    byte
+	mpMux    sync.Mutex
+	stMux    sync.RWMutex
 }
 
 func NewListener(listener net.Listener, behavior Behavior) *Listener {
 	return &Listener{
 		Listener: listener,
-		HeadSize: DefaultHeadSize,
 		Behavior: behavior,
 
-		connMap: map[uint32]net.Conn{},
-		state:   ListenStateReady,
+		headSize: DefaultHeadSize,
+		connMap:  map[uint32]net.Conn{},
+		state:    ListenStateReady,
 	}
 }
 
@@ -42,6 +43,7 @@ func (s *Listener) Start() {
 	}
 
 	go s.serve()
+	s.SetState(ListenStateRunning)
 }
 
 func (s *Listener) Close() {
@@ -61,6 +63,19 @@ func (s *Listener) SetState(state byte) {
 	defer s.stMux.Unlock()
 
 	s.state = state
+}
+
+func (s *Listener) SetHeadSize(headSize byte) {
+	if s.GetState() != ListenStateReady {
+		return
+	}
+
+	headSize = correctHeadSize(headSize)
+	if headSize == s.headSize {
+		return
+	}
+
+	s.headSize = headSize
 }
 
 func (s *Listener) serve() {
@@ -137,8 +152,8 @@ func (s *Listener) startPackageListen(connId uint32) {
 	}
 	defer s.closeConn(connId)
 
-	s.HeadSize = correctHeadSize(s.HeadSize)
-	headSizeByte := make([]byte, s.HeadSize, s.HeadSize)
+	s.headSize = correctHeadSize(s.headSize)
+	headSizeByte := make([]byte, s.headSize, s.headSize)
 
 	for {
 		if s.GetState() == ListenStateStop {
@@ -150,7 +165,7 @@ func (s *Listener) startPackageListen(connId uint32) {
 			break
 		}
 
-		headSize := transInt(headSizeByte) - uint64(s.HeadSize)
+		headSize := transInt(headSizeByte) - uint64(s.headSize)
 		if headSize <= 0 {
 			continue
 		}
